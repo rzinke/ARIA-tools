@@ -686,7 +686,7 @@ def tropo_correction(full_product_dict, tropo_products, bbox_file, prods_TOTbbox
             tropo_product=np.divide(tropo_product,lookfile)
 
             #Correct phase and save to file
-            unwphase=np.subtract(unwphase,tropo_product)
+            unwphase=np.add(unwphase,tropo_product)
             np.ma.set_fill_value(unwphase, unwnodata); np.ma.set_fill_value(tropo_product, 0.)
             renderVRT(outname+'_tropodiff', tropo_product.filled(), geotrans=geotrans, drivername=outputFormat, gdal_fmt='float32', proj=proj, nodata=0.)
             renderVRT(outname, unwphase.filled(), geotrans=geotrans, drivername=outputFormat, gdal_fmt='float32', proj=proj, nodata=unwnodata)
