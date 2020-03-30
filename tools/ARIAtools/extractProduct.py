@@ -894,6 +894,13 @@ def solidtide_correction(full_product_dict, bbox_file, prods_TOTbbox, inDir='unw
             np.sin(df_reference['INCvalue']))-(df_reference['wt']*np.cos(df_reference['INCvalue']))
         df_secondary['PROJvalue'] = (-((df_secondary['ut']*np.cos(df_secondary['AZvalue']))+(df_secondary['vt']*np.sin(df_secondary['AZvalue'])))* \
             np.sin(df_secondary['INCvalue']))-(df_secondary['wt']*np.cos(df_secondary['INCvalue']))
+        # >>> RZ >>>
+        # store earthtide maps
+        secondary_array=np.flipud(df_secondary['PROJvalue'].to_numpy().reshape(len(df_secondary['lat'].unique()),len(df_secondary['lon'].unique())))
+        secondary_array=np.nan_to_num(secondary_array)
+        master_array=np.flipud(df_reference['PROJvalue'].to_numpy().reshape(len(df_reference['lat'].unique()),len(df_reference['lon'].unique())))
+        master_array=np.nan_to_num(master_array)
+        # <<< RZ <<<
         #get differential
         se_product=np.flipud(df_secondary['PROJvalue'].to_numpy().reshape(len(df_secondary['lat'].unique()),len(df_secondary['lon'].unique()))- \
             df_reference['PROJvalue'].to_numpy().reshape(len(df_reference['lat'].unique()),len(df_reference['lon'].unique())))
@@ -908,6 +915,38 @@ def solidtide_correction(full_product_dict, bbox_file, prods_TOTbbox, inDir='unw
         srcband=src_ds.GetRasterBand(1)
         gdal.FillNodata(targetBand=srcband,maskBand=None, maxSearchDist=100, smoothingIterations=1)
         src_ds = None
+        # >>> RZ >>>
+        #extrapolate through secondary nodata
+        secondary_name=os.path.join(workdir,product_dict[2][i][0][:8]+'_setide')
+        secondary_name=outname+'_secondary'
+        renderVRT(secondary_name, secondary_array, geotrans=ds_geotrans, drivername=outputFormat, gdal_fmt='float32', proj=proj, nodata=0.)
+        src_ds = gdal.Open(secondary_name, gdal.GA_Update)
+        srcband=src_ds.GetRasterBand(1)
+        gdal.FillNodata(targetBand=srcband,maskBand=None, maxSearchDist=100, smoothingIterations=1)
+        src_ds = None
+        #oversample secondary to full-res
+        gdal.Warp(secondary_name, secondary_name, options=gdal.WarpOptions(format=outputFormat, outputBounds=bounds, xRes=abs(geotrans[1]), \
+            yRes=abs(geotrans[-1]), resampleAlg='bilinear',multithread=True, options=['NUM_THREADS=%s'%(num_threads)+' -overwrite']))
+        gdal.Warp(secondary_name, secondary_name, options=gdal.WarpOptions(format=outputFormat, cutlineDSName=prods_TOTbbox, outputBounds=bounds, \
+            dstNodata=0.,multithread=True, options=['NUM_THREADS=%s'%(num_threads)+' -overwrite']))
+        # update secondary VRT
+        gdal.BuildVRT(secondary_name+'.vrt', secondary_name, options=gdal.BuildVRTOptions(options=['-overwrite']))
+        #extrapolate through master nodata
+        master_name=os.path.join(workdir,product_dict[2][i][0][-8:]+'_setide')
+        master_name=outname+'_master'
+        renderVRT(master_name, master_array, geotrans=ds_geotrans, drivername=outputFormat, gdal_fmt='float32', proj=proj, nodata=0.)
+        src_ds = gdal.Open(master_name, gdal.GA_Update)
+        srcband=src_ds.GetRasterBand(1)
+        gdal.FillNodata(targetBand=srcband,maskBand=None, maxSearchDist=100, smoothingIterations=1)
+        src_ds = None
+        #oversample master to full-res
+        gdal.Warp(master_name, master_name, options=gdal.WarpOptions(format=outputFormat, outputBounds=bounds, xRes=abs(geotrans[1]), \
+            yRes=abs(geotrans[-1]), resampleAlg='bilinear',multithread=True, options=['NUM_THREADS=%s'%(num_threads)+' -overwrite']))
+        gdal.Warp(master_name, master_name, options=gdal.WarpOptions(format=outputFormat, cutlineDSName=prods_TOTbbox, outputBounds=bounds, \
+            dstNodata=0.,multithread=True, options=['NUM_THREADS=%s'%(num_threads)+' -overwrite']))
+        # update master VRT
+        gdal.BuildVRT(master_name+'.vrt', master_name, options=gdal.BuildVRTOptions(options=['-overwrite']))
+        # <<< RZ <<<
         #oversample to full-res
         gdal.Warp(outname+'_sediff', outname+'_sediff', options=gdal.WarpOptions(format=outputFormat, outputBounds=bounds, xRes=abs(geotrans[1]), \
             yRes=abs(geotrans[-1]), resampleAlg='bilinear',multithread=True, options=['NUM_THREADS=%s'%(num_threads)+' -overwrite']))
