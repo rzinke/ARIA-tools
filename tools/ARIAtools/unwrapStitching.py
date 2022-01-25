@@ -382,6 +382,9 @@ class UnwrapOverlap(Stitching):
                 # will first attempt to mask out connected component 0, and default to complete overlap if this fails.
                 # Cropping the unwrapped phase and connected component to the overlap region alone, inhereting the no-data.
                 # connected component
+                from datetime import datetime  #rz
+
+                ### David >>>
                 out_data,connCompNoData1,geoTrans,proj = GDALread(self.ccFile[counter],data_band=1,loadData=False)
                 out_data,connCompNoData2,geoTrans,proj = GDALread(self.ccFile[counter+1],data_band=1,loadData=False)
                 connCompFile1 = gdal.Warp('', self.ccFile[counter], options=gdal.WarpOptions(format="MEM", cutlineDSName=outname, outputBounds=polyOverlap.bounds, dstNodata=connCompNoData1))
@@ -401,9 +404,11 @@ class UnwrapOverlap(Stitching):
                 connCompData2 =connCompFile2.GetRasterBand(1).ReadAsArray()
                 connCompData2[(connCompData2==connCompNoData2) | (connCompData2==0)]=np.nan
                 connCompData2_temp = (connCompData2*100)
+                # print('connCompData2_temp', np.nanmean(connCompData2_temp))  #rz
                 temp = connCompData2_temp.astype(np.int)-connCompData1.astype(np.int)
                 temp[(temp<0) | (temp>2000)]=0
                 temp_count = collections.Counter(temp.flatten())
+                # print('temp_count', temp_count)  #rz
                 maxKey = 0
                 maxCount = 0
                 for key, keyCount in temp_count.items():
@@ -411,10 +416,43 @@ class UnwrapOverlap(Stitching):
                         if keyCount>maxCount:
                             maxKey =key
                             maxCount=keyCount
+                ### David <<<
+
+
+                ### Rob >>>
+                # Clip connected component to region of overlap
+                connCompFile1 = gdal.Warp('', self.ccFile[counter],   options=gdal.WarpOptions(format="MEM", cutlineDSName=outname, dstAlpha=True))
+                connCompFile2 = gdal.Warp('', self.ccFile[counter+1], options=gdal.WarpOptions(format="MEM", cutlineDSName=outname, dstAlpha=True))
+
+                # Open unwrapped phase
+                unwFile1 = gdal.Open(self.inpFile[counter], gdal.GA_ReadOnly)
+                unwFile2 = gdal.Open(self.inpFile[counter+1], gdal.GA_ReadOnly)
+
+                # Find the component with the largest overlap
+                connCompData1 = connCompFile1.GetRasterBand(1).ReadAsArray()
+                connCompMask1 = connCompFile1.GetRasterBand(2).ReadAsArray()
+                connCompData1[(connCompMask1==0) | (connCompData1==0)] = np.nan
+                print('AAA', connCompData1.shape)
+
+                connCompData2 = connCompFile2.GetRasterBand(1).ReadAsArray()
+                connCompMask2 = connCompFile2.GetRasterBand(2).ReadAsArray()
+                connCompData2[(connCompMask2==0) | (connCompData2==0)] = np.nan
+                print('BBB', connCompData2.shape)
+
+                connCompData2_temp = (connCompData2*100)
+                print('CCC', connCompData2_temp.shape); exit()  #rz
+                # print('connCompData2_temp', np.nanmean(connCompData2_temp))  #rz
+                temp = connCompData2_temp.astype(np.int)-connCompData1.astype(np.int)
+                temp[(temp<0) | (temp>2000)] = 0
+                temp_count = collections.Counter(temp.flatten())
+                # print('temp_count', temp_count)  #rz
+                ### Rob <<<
+
+                print('STOP - unwrapStitching'); exit()  #rz
 
                 # if the max key count is 0, this means there is no good overlap region between products.
                 # In that scenario default to different stitching approach.
-                if maxKey!=0 and maxCount>75:
+                if (maxKey != 0) and (maxCount > 75):
                     # masking the unwrapped phase and only use the largest overlapping connected component
                     unwData1 = unwFile1.GetRasterBand(1).ReadAsArray()
                     unwData1[(unwData1==unwNoData1) | (temp!=maxKey)]=np.nan
