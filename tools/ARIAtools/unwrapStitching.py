@@ -211,6 +211,7 @@ class Stitching:
         if self.nfiles==0:
             log.info('No files left after GDAL compatibility check')
             sys.exit(0)
+
     def __createImages__(self):
         '''
             This function will write the final merged unw and conencted component file. As intermediate step tiff   files are generated with integer values which will represent the shift to be applied to connected componenet and the moduli shift to be applied to the unwrapped phase.
