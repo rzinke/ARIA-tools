@@ -31,6 +31,7 @@ import ARIAtools.extractProduct
 import ARIAtools.product
 import ARIAtools.util.dem
 import ARIAtools.util.log
+from ARIAtools.util.run_logging import RunLog
 import ARIAtools.util.mask
 import ARIAtools.util.misc
 import ARIAtools.util.vrt
@@ -140,6 +141,9 @@ def create_parser():
         '--nc_version', dest='nc_version', default='1b',
         help='Specify netcdf version as str, e.g. 1c or all prods; '
              'default: 1b')
+    parser.add_argument(
+        '--update_mode', dest='update_mode', action='store_true',
+        help='Update existing stack with new products.')
     parser.add_argument(
         '-verbose', '--verbose', action='store_true', dest='verbose',
         help="Toggle verbose mode on.")
@@ -396,6 +400,7 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
 
+    # Logging
     log_level = {
         'debug': logging.DEBUG, 'info': logging.INFO,
         'warning': logging.WARNING, 'error': logging.ERROR}[args.log_level]
@@ -411,6 +416,15 @@ def main():
     LOGGER.info(
         'Thread count specified for gdal multiprocessing = %s' % (
             args.num_threads))
+
+    # Start run log
+    run_log = RunLog(workdir=args.workdir, verbose=args.verbose)
+    run_log.create_new_entry()
+    run_log.write('ARIAtools_version', ARIAtools.__version__)
+    run_log.write('args', args.__dict__)
+
+    # Determine whether this is a re-run of a previous run
+    run_log.determine_rerun()
 
     # If bPerpendicular specified on command line extract bPerp layer,
     # otherwise extract the average from GUNWs into json file.
@@ -434,6 +448,7 @@ def main():
     # standard product
     # In addition, path to bbox file ['standardproduct_info.bbox_file']
     # (if bbox specified)
+    # run_log.load('setup-aoi/RunLog.json')
     LOGGER.info('Building ARIA product instance')
     standardproduct_info = ARIAtools.product.Product(
         args.imgfile, bbox=args.bbox, projection=args.projection,
@@ -455,6 +470,8 @@ def main():
             standardproduct_info.bbox_file, args.croptounion,
             num_threads=args.num_threads, minimumOverlap=args.minimumOverlap,
             verbose=args.verbose)
+    run_log.write('prods_TOTbbox', prods_TOTbbox)
+    run_log.write('prods_TOTbbox_metadatalyr', prods_TOTbbox_metadatalyr)
 
     # Download/Load DEM & Lat/Lon arrays, providing bbox,
     # expected DEM shape, and output dir as input.
