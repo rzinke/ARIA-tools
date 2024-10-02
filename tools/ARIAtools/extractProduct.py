@@ -1369,6 +1369,8 @@ def export_products(
     # De-duplication: Look for existing run file
     run_log = RunLog(workdir=outDir, verbose=verbose)
     run_log.load()
+
+    # Determine whether this is a re-run of a previous run
     update_mode = run_log.determine_rerun()
 
     # Loop through other user expected layers

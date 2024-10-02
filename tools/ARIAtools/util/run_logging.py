@@ -3,6 +3,7 @@ import os
 import json
 import pickle
 from datetime import datetime
+from shapely import from_wkt
 
 from ARIAtools.util.shp import open_shp
 
@@ -66,6 +67,11 @@ class RunLog:
         log_names = self.load()
         current_run = log_names[0]
         self.logs[current_run][atr_name] = atr_value
+
+        # Special records for prods_TOTbbox and prods_TOTbbox_matadatalyr
+        if atr_name in ['prods_TOTbbox', 'prods_TOTbbox_metadatalyr']:
+            shp = open_shp(atr_value)
+            self.logs[current_run][atr_name+'_poly'] = shp.wkt
 
         self.dump()
 
@@ -141,6 +147,14 @@ class RunLog:
                 prev_args = prev_log['args']
                 if curr_args == prev_args:
                     rerun = True
+
+            # Check bounding boxes
+            if ('prods_TOTbbox_poly' in curr_log.keys()) \
+                    and ('prods_TOTbbox_poly' in prev_log.keys()):
+                curr_bbox = from_wkt(curr_log['prods_TOTbbox_poly'])
+                prev_bbox = from_wkt(prev_log['prods_TOTbbox_poly'])
+                rerun = True if curr_bbox == prev_bbox else False
+
 
         # Write re-run value to log
         self.write('rerun', rerun)
