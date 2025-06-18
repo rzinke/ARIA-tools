@@ -182,7 +182,7 @@ def main(inps=None):
         # TODO make LHS a tuple
         standardproduct_info.products[0], standardproduct_info.products[1], \
             standardproduct_info.bbox_file, prods_TOTbbox, \
-            prods_TOTbbox_metadatalyr, arrres, proj, update_mode,
+            prods_TOTbbox_metadatalyr, arrres, proj, update_mode, \
             is_nisar_file = \
                 ARIAtools.extractProduct.merged_productbbox(
                     standardproduct_info.products[0],
